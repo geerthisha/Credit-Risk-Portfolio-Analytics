@@ -1,0 +1,6 @@
+# Ignore raw and processed datasets
+*.csv
+
+# Ignore Python virtual environments or system caches
+__pycache__/
+.DS_Store
