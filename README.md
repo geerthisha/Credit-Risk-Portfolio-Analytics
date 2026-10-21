@@ -2,7 +2,13 @@
 
 **How effectively can logistic regression predict two-year serious delinquency from borrower characteristics in this benchmark dataset?**
 
-A reproducible Python study of borrower risk, comparing logistic regression with a constant-probability baseline and gradient boosting. The project connects data validation, training-only exploration, cross-validated model selection, held-out evaluation, interpretable score scaling and a Tkinter dashboard.
+- **Answer:** logistic regression reaches a held-out ROC-AUC of **0.853** (95% CI 0.840–0.866) on 3,343 unseen borrowers, against 0.500 for a constant-probability baseline.
+- **Comparison:** gradient boosting ranks risk slightly but consistently better (**+0.009 AUC**, paired 95% CI 0.005–0.013). Logistic regression was kept for the scorecard because its effects are transparent and convert directly into points.
+- **Concentration:** the highest-risk **23% of borrowers carry 42% of illustrative loss**.
+
+A reproducible Python study connecting data validation, training-only exploration, cross-validated model selection, held-out evaluation, interpretable score scaling and a Tkinter dashboard.
+
+![Dashboard](docs/dashboard.png)
 
 ## Results
 
@@ -14,30 +20,65 @@ The held-out test set contains **3,343 borrowers**, including **1,671 serious-de
 | Logistic regression | **0.8534** | **0.8402–0.8660** | **0.8544** | **0.1572** | **0.4841** |
 | Gradient boosting | 0.8625 | 0.8496–0.8747 | 0.8596 | 0.1505 | 0.4643 |
 
-Logistic regression provides useful discrimination within this benchmark and improves substantially on the baseline. Its training cross-validation ROC-AUC was **0.8478**, compared with **0.8534** on the test set.
+Test performance agrees with development estimates: logistic regression scored **0.8478** in training cross-validation and **0.8534** on the test set, with a train/validation AUC gap of only 0.0008. The small train/validation gap suggests limited overfitting, although agreement between scores cannot rule out leakage.
 
-Gradient boosting improves test ROC-AUC by **0.00912**, with a paired 95% bootstrap interval of **0.00469–0.01333**. It also achieves lower Brier score and log loss. This supports a small performance advantage, while logistic regression offers a directly additive score decomposition.
+Gradient boosting improves test ROC-AUC by **0.0091** (paired 95% interval **0.0047–0.0133**) and also achieves lower Brier score and log loss. The paired test-set bootstrap supports a small improvement for these fitted models; logistic regression keeps an additive score that can be explained feature by feature.
 
-Intervals use 1,000 paired, class-stratified percentile bootstrap resamples. They describe test-sample uncertainty conditional on the fitted models, excluding training and model-selection uncertainty.
+Intervals use 1,000 paired, class-stratified percentile bootstrap resamples of the test set. They are conditional on the fitted models and exclude uncertainty from training and model selection.
 
 ![Held-out ROC curves](outputs/stage5/test_roc.png)
 
+### At a fixed 0.50 threshold
+
+| Model | Precision | Recall | Specificity | Missed delinquency events | False alarms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Logistic regression | 78.9% | 73.7% | 80.3% | 440 | 329 |
+| Gradient boosting | 78.1% | 77.3% | 78.4% | 380 | 361 |
+
+The threshold was fixed before test evaluation and not tuned. A real lending cut-off would depend on representative data and the relative costs of missed defaults and declined good customers.
+
+## What drives predictions
+
+Coefficients of the selected logistic model, per standard deviation of each processed predictor:
+
+| Predictor | Coefficient | Effect on predicted risk |
+| --- | ---: | --- |
+| 90+ day late payments | +1.01 | Higher |
+| Revolving utilisation | +0.80 | Higher |
+| 60–89 day late payments | +0.65 | Higher |
+| 30–59 day late payments | +0.65 | Higher |
+| Open credit lines | +0.23 | Higher |
+| Unusual delinquency-code flag | +0.19 (odds ratio 14.0 for 0 → 1) | Higher |
+| Real-estate loans | +0.16 | Higher |
+| Dependents | +0.06 | Higher |
+| Debt ratio | −0.22 | Lower (see limitations) |
+| log(1 + monthly income) | −0.23 | Lower |
+| Age | −0.24 | Lower |
+
+These are associations conditional on the other predictors, not causal effects.
+
+Training-only Information Value analysis tells the same story. Past delinquency (weighted total IV 1.43) and utilisation (IV 0.96) dominate. Age (0.19) is moderate; income, debt ratio, open credit lines, dependents and real-estate loans are weak (all below 0.08). Default rates rise from 29% for borrowers with no recorded late payments to 94% for those with six or more weighted occurrences.
+
 ## Risk concentration
 
-Fixed probability bands summarise the frozen logistic model's predictions. Boundaries were chosen independently of test outcomes.
+Fixed probability bands summarise the frozen logistic model's predictions on the test set. Boundaries were chosen independently of test outcomes.
 
-| Predicted-risk band | Borrowers | Mean predicted probability | Observed event rate | Share of illustrative loss |
-| --- | ---: | ---: | ---: | ---: |
-| 0–10% | 79 | 8.60% | 3.80% | 0.40% |
-| 10–20% | 601 | 15.39% | 10.15% | 5.49% |
-| 20–40% | 808 | 28.54% | 28.22% | 13.70% |
-| 40–60% | 617 | 50.27% | 54.78% | 18.42% |
-| 60–80% | 480 | 69.55% | 73.54% | 19.83% |
-| 80–100% | 758 | 93.61% | 90.77% | 42.15% |
+| Predicted-risk band | Approximate score range | Borrowers | Mean predicted probability | Observed event rate | Share of illustrative loss |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 0–10% | 663 and above | 79 | 8.60% | 3.80% | 0.40% |
+| 10–20% | 640–663 | 601 | 15.39% | 10.15% | 5.49% |
+| 20–40% | 612–640 | 808 | 28.54% | 28.22% | 13.70% |
+| 40–60% | 588–612 | 617 | 50.27% | 54.78% | 18.42% |
+| 60–80% | 560–588 | 480 | 69.55% | 73.54% | 19.83% |
+| 80–100% | Below 560 | 758 | 93.61% | 90.77% | 42.15% |
 
-The highest-risk band contains **22.67% of borrowers and 42.15% of illustrative loss**. The highest two bands contain **37.03% of borrowers and 61.98% of illustrative loss**. Observed event rates increase across all six bands in this test sample; this is an empirical result, not an enforced model property.
+Score boundaries are rounded for display; band assignment uses the unrounded probabilities and exact boundaries in `outputs/stage7/risk_band_definitions.csv`.
+
+The highest-risk band contains **22.67% of borrowers and 42.15% of illustrative loss**. The highest two bands contain **37.03% of borrowers and 61.98% of illustrative loss**. Observed event rates rise across all six bands.
 
 ![Borrower share and illustrative loss share](outputs/stage7/loss_concentration_by_band.png)
+
+![Dashboard risk concentration tab](docs/risk_concentration.png)
 
 Illustrative loss is calculated as:
 
@@ -45,29 +86,27 @@ Illustrative loss is calculated as:
 sum(predicted two-year serious-delinquency probability × assumed EAD × assumed LGD)
 ```
 
-Assumptions are **GBP 10,000 EAD per borrower** and **45% LGD**, with no discounting. Serious delinquency is used as a proxy for default. These assumptions produce GBP 7,575,638.75 of illustrative loss on GBP 33,430,000 of assumed exposure.
-
-These amounts are not observed losses, representative lending-portfolio forecasts or IFRS 9 provisions. With constant EAD and LGD, loss shares are proportional to each band's sum of predicted probabilities. The currency is an illustrative choice; the source income currency is unspecified.
+with an assumed **GBP 10,000 EAD per borrower** and **45% LGD**, no discounting, and serious delinquency as a proxy for default. With constant EAD and LGD, each band's loss share is proportional to its sum of predicted probabilities, so the concentration pattern is the informative result. The total (GBP 7.58m on GBP 33.43m of assumed exposure) mainly reflects the 50/50 sample and is not an observed loss, a portfolio forecast or an IFRS 9 provision. GBP is an illustrative choice; the source income currency is unspecified.
 
 ## Dataset and preparation
 
-Source: [Credit Risk Benchmark Dataset](https://www.kaggle.com/datasets/adilshamim8/credit-risk-benchmark-dataset), published on Kaggle by **adilshamim8**. The supplied dataset page lists [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Attribution applies to the dataset; it does not establish a licence for this project's code.
+Source: [Credit Risk Benchmark Dataset](https://www.kaggle.com/datasets/adilshamim8/credit-risk-benchmark-dataset), published on Kaggle by **adilshamim8** under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-The downloaded file contains 16,714 records, ten numerical predictors and a binary target. Exactly 8,357 records belong to each outcome class. The publisher does not explain the balancing procedure or earlier preprocessing. No missing values were detected in the supplied CSV.
+The file contains 16,714 records, ten numerical predictors and a binary target, with exactly 8,357 records in each outcome class. The publisher does not document how the sample was balanced or what earlier preprocessing was applied. No missing values were present.
 
-Project modifications:
+Preparation steps:
 
-- Preserve the raw file unchanged; validate schema, values and the binary target.
-- Require observed age of at least 18. No records were excluded by this rule. Retain the observed age of 101 because no documented upper eligibility limit is available.
-- Remove two exact duplicate copies before splitting. Identical values could represent different borrowers; removal conservatively prevents copies crossing the split.
-- Treat undocumented delinquency values 96 and 98 as unknown under a modelling assumption. After deduplication, 88 records contain these values; their indicators match across all three delinquency columns. Preserve one `delinquency_code_flag`.
-- Create a stratified 80/20 split with seed 42: **13,369 training records and 3,343 test records**. Record IDs retain original CSV data-row positions and are excluded from modelling.
+- Keep the raw file unchanged; validate the schema, values and binary target.
+- Require age of at least 18. No records were excluded; one borrower aged 101 is kept because no upper eligibility limit is documented.
+- Remove 2 exact duplicate copies before splitting, so copies cannot cross the train/test boundary.
+- Treat the undocumented delinquency values 96 and 98 as unknown. 88 records contain them, identically across all three late-payment columns, so a single `delinquency_code_flag` records them. In training, 69 of 73 flagged borrowers (94.5%) experienced serious delinquency, against 49.8% of others.
+- Split 80/20, stratified, with seed 42: **13,369 training and 3,343 test records**, with no overlapping IDs.
 
-In training data, 69 of 73 flagged records experienced serious delinquency (94.52%), versus 49.75% among unflagged records. This association does not establish the meaning of the codes. A connection to other credit datasets has not been verified.
+Income has several common round values, including 5,000, 4,000 and 3,000. These patterns cannot establish whether earlier imputation occurred. 143 training borrowers report zero income, which the `log1p` transform handles.
 
 ### Data dictionary
 
-| Column | Publisher description / interpretation |
+| Column | Description |
 | --- | --- |
 | `rev_util` | Revolving credit balance divided by credit limit |
 | `age` | Borrower age in years |
@@ -79,70 +118,70 @@ In training data, 69 of 73 flagged records experienced serious delinquency (94.5
 | `real_estate` | Number of real-estate loans or credit lines |
 | `late_60_89` | Count of occasions 60–89 days past due; historical window unspecified |
 | `dependents` | Number of dependents |
-| `dlq_2yrs` | Serious delinquency in the next two years: 1 = yes, 0 = no; precise severity threshold unspecified |
+| `dlq_2yrs` | Serious delinquency in the next two years (1 = yes); exact severity threshold unspecified |
 
 ## Modelling approach
 
-Exploratory WoE/IV tables use training data only, with a 0.5 pseudocount added to both classes in every observed group. These tables are descriptive and do not supply learned bins to cross-validation.
+**Exploration.** WoE/IV tables use training data only, with a 0.5 pseudocount per class in every group. They are descriptive and do not feed the model.
 
-Model selection uses five identical stratified training folds. Median imputation, 99th-percentile upper caps for utilisation and debt ratio, and logistic standardisation are fitted within each fold. Income is compared in raw form and as `log1p(income)`. Structural unusual-code handling and deterministic feature engineering precede these learned transformations.
+**Pipeline.** Every learned step sits inside one scikit-learn pipeline, fitted separately within each of five identical stratified cross-validation folds: median imputation, 99th-percentile caps on utilisation and debt ratio (whose training maxima reach 22,000 and 61,106), an optional `log1p` income transform, and standardisation.
 
-Two delinquency representations are compared: the separate counts, and a replacement composite `late_30_59 + 2×late_60_89 + 3×late_90`. The weights are a severity convention. The composite and all its components are not fitted together. Their best logistic CV AUCs are 0.8472 and 0.8478 respectively: little difference, with separate counts selected by mean CV AUC.
+**Choices compared on training folds only:**
 
-The selected logistic model uses separate counts, logged income and `C=10`, the best of 0.1, 1 and 10. Regularisation and income transformation had negligible effects on AUC across these candidates. The gradient-boosting comparison selects seven leaf nodes from seven and fifteen, with 150 boosting iterations and learning rate 0.1.
+- *Delinquency representation:* separate counts against the weighted composite `late_30_59 + 2×late_60_89 + 3×late_90`. Their best CV AUCs were 0.8478 and 0.8472 respectively, a small difference. The weighted composite offered no material improvement over separate counts in this comparison. Separate counts were selected by mean CV AUC.
+- *Regularisation and income:* `C` of 0.1, 1 and 10, with raw or logged income. All six combinations fell within 0.0003 AUC of each other; `C=10` with logged income was selected.
+- *Gradient boosting:* 7 leaf nodes outperformed 15 (CV AUC 0.855 vs 0.853), and the larger trees showed a wider train/validation gap (0.046 vs 0.020).
 
-A threshold of **0.50** was fixed before initial test evaluation. Logistic precision is **78.91%**, recall **73.67%** and specificity **80.32%**. A lending cutoff would require representative data and explicit decision costs.
+The models were then frozen. The test set was used once, for evaluation; reporting stages load the saved models without refitting or recalibration.
 
-Models were frozen after initial held-out evaluation. Reporting stages load them without fitting or recalibration. Further modelling informed by these results would require fresh independent evaluation. A Git freeze tag should only be described as created once it has actually been committed.
+## Score scaling
 
-## Score scaling and checks
-
-Scores are derived directly from the frozen logistic pipeline:
+Scores come directly from the frozen logistic pipeline:
 
 ```text
-score = 600 − (20 / ln(2)) × model log-odds
+score = 600 − (20 / ln 2) × model log-odds of serious delinquency
 ```
 
-600 points represents 1:1 non-event/event odds; 20 additional points doubles those odds. Higher scores mean lower predicted serious-delinquency risk. Unrounded scores preserve ROC-AUC; rounded scores are for display only.
+600 points corresponds to even odds, and every 20 points doubles the odds of not defaulting. For example, 640 corresponds to a 20% predicted probability and 560 to 80%. Higher scores mean lower risk. The score anchors are set by the 50/50 sample and are not comparable to commercial credit scores.
 
-Exports include feature contributions, imputation values, caps, processed training means/scales and a manual reconstruction formula. Logged income's multiplier applies to `ln(1 + income)`. Base points refer to the mean of processed predictors, which need not represent an actual borrower. Contributions are not causal effects or validated lending reason codes.
-
-Checks cover probability round trips, score contributions, manual reconstruction, reference odds, unchanged AUC and agreement with evaluated predictions. The model's SHA-256 fingerprint is recorded. Manual reconstruction differed by at most approximately 1.7×10⁻¹³ points in the verified run.
+Exports include each borrower's points by feature, plus the imputation values, caps, training means and scales needed to score a borrower by hand. Checks confirm that scores convert back to the model's probabilities exactly, that feature points sum to each score, that manual reconstruction matches the pipeline (maximum difference 1.7×10⁻¹³), and that scaling leaves ROC-AUC unchanged. The selected model's SHA-256 fingerprint (`c90e909a…5bde98c5`) is recorded in the score-scaling audit to identify the model used for score reconstruction.
 
 ## Limitations
 
-- The approximately 50/50 sample is not established as representative of lending prevalence. Calibration, average precision, threshold metrics and absolute losses are sample-dependent.
-- Predictor measurement dates, historical windows, sampling and earlier preprocessing are incompletely documented. The target's exact severity threshold is unspecified.
-- Calibration differs by band. Logistic predictions overestimate observed risk in the 10–20% and 80–100% bands and underestimate it in several middle bands. The lowest band has 79 borrowers and only three events.
-- Debt ratio has an ambiguous definition and extreme values. Its earlier negative adjusted linear coefficient contrasts with generally higher unadjusted event rates in upper ratio groups; no causal interpretation is claimed.
-- Uncapped delinquency terms can extrapolate. The minimum score, 89.68, is driven primarily by 17 recorded 90+ day late-payment episodes against a training maximum of 13. There are 64 test scores below 400 (1.91%). Near-certain predicted risk is not independently validated.
-- Random holdout evaluation does not demonstrate temporal, external-population or production performance. No regulatory compliance or deployment readiness is claimed.
+- **Sample.** The 50/50 sample does not reflect real lending prevalence. Calibration, average precision, threshold metrics and monetary totals all depend on it.
+- **Documentation.** Predictor measurement dates, historical windows, the sampling method and earlier preprocessing are undocumented, as is the target's exact severity threshold.
+- **Calibration.** Logistic predictions overestimate observed risk in the 0–10%, 10–20% and 80–100% bands and underestimate it in the middle bands, by up to about 5 percentage points. The lowest band has only 79 borrowers and 3 events. Gradient boosting is better calibrated at the extremes.
+- **Correlated predictors.** Debt ratio, open credit lines and real-estate loans are moderately correlated (Spearman 0.44–0.60). Debt ratio's negative adjusted coefficient contrasts with its rising unadjusted event rate (45% to 62% across training fifths), so these coefficients are not interpreted individually.
+- **Unbounded scores.** Late-payment counts are not capped, so the linear terms can extrapolate. The minimum score, 89.68, comes from 17 recorded 90+ day late payments against a training maximum of 13. Of the 64 test borrowers scoring below 400 (1.9%), 63 experienced serious delinquency, but this does not establish that the extreme probabilities are reliable. The score scale is unbounded. A production scorecard would cap or bin these counts.
+- **Scope.** A random holdout does not demonstrate performance over time, on other populations or in production. No regulatory compliance or deployment readiness is claimed.
 
 ![Held-out calibration](outputs/stage5/test_calibration.png)
 
-## Setup and execution
+## Setup
 
-Tested locally with **Python 3.14.2 on macOS**. Dependency versions are pinned in `requirements.txt`. Independent clean-environment reproduction remains to be checked.
+Tested with **Python 3.14.2 on macOS**; dependency versions are pinned in `requirements.txt`.
 
 ```bash
 git clone https://github.com/geerthisha/Credit-Risk-Portfolio-Analytics.git
 cd Credit-Risk-Portfolio-Analytics
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 python -m pip install -r requirements.txt
 ```
 
-On Windows, activate with `.venv\Scripts\activate` instead. Tkinter/Tcl-Tk must be available separately from pip. Check it with `python -m tkinter`; this should open a small test window. If unavailable, install Python with Tk support or the appropriate OS package. The analytical stages do not require a graphical display.
+The dashboard needs Tkinter, which is installed with Python rather than pip. Check it with `python -m tkinter`, which should open a small test window. The analysis stages do not need a display.
 
-### First run from a fresh clone
+This repository includes source code, aggregate analysis outputs and charts. The raw dataset, borrower-level exports and fitted models are excluded, so the analysis must be rebuilt before the dashboard can run.
 
-Download the CSV from the linked Kaggle dataset page. Create `data/raw/` and place the file at exactly:
+### Full rebuild
+
+Download the [Credit Risk Benchmark Dataset](https://www.kaggle.com/datasets/adilshamim8/credit-risk-benchmark-dataset) and place it at exactly:
 
 ```text
 data/raw/Credit Risk Benchmark Dataset.csv
 ```
 
-Raw data, borrower-level exports and fitted models may be excluded from Git. Generate them before launching the dashboard:
+then run:
 
 ```bash
 python run_pipeline.py --rebuild
@@ -150,51 +189,63 @@ python -m unittest test_project -v
 python dashboard_popup.py
 ```
 
-`--rebuild` runs Stages 1–7 and overwrites generated models and outputs. Reproduce in a separate checkout or copy when preserving an existing frozen checkpoint. Rebuilt model bytes and results can vary across software or platform versions.
+`--rebuild` runs Stages 1–7 and overwrites models and outputs. Rebuilt results may differ slightly across library or platform versions.
 
 ### Reporting with existing models
+
+After a rebuild, the reporting stages can be rerun without refitting:
 
 ```bash
 python run_pipeline.py
 python dashboard_popup.py
 ```
 
-The default runner executes Stages 5–7 using existing models and prepared test data. It stops on a failed stage and returns an error code. The dashboard is launched separately and reports missing files rather than substituting fixed figures.
+The default runner executes Stages 5–7 with the existing models and stops with an error code if any stage fails. The dashboard reads the saved outputs and reports any missing file rather than substituting figures.
+
+Model files (`.joblib`) are Python pickles, and loading one can run arbitrary code. Only load model files you trust, such as ones you built with `--rebuild`.
+
+## Tests
+
+`python -m unittest test_project -v` runs six tests, all passing:
+
+- caps are learned from training values only;
+- the weighted delinquency total keeps missing components missing and leaves its input unchanged;
+- training and test sets share no IDs or duplicate records;
+- every test borrower receives a valid probability from every model;
+- scores convert back to model probabilities, and feature points sum to each score;
+- the saved model reloads in a fresh process and reproduces the evaluated predictions.
 
 ## Project layout
 
 ```text
-├── config.py
-├── features.py
-├── model_components.py
-├── run_pipeline.py
-├── stage1_cleaning.py
-├── stage2_features.py
-├── stage3_woe_iv.py
-├── stage4_pd_modeling.py
-├── stage5_evaluation.py
-├── stage6_scorecard_scaling.py
-├── stage7_portfolio_analysis.py
-├── dashboard_popup.py
-├── test_project.py
+├── config.py                      # All paths, settings and assumptions
+├── features.py                    # Shared feature engineering
+├── model_components.py            # Custom scikit-learn transformers
+├── run_pipeline.py                # Runs reporting stages, or all with --rebuild
+├── stage1_cleaning.py             # Validation, exclusions, flags, train/test split
+├── stage2_features.py             # Weighted delinquency feature and profiles
+├── stage3_woe_iv.py               # Training-only WoE/IV exploration
+├── stage4_pd_modeling.py          # Cross-validated model comparison
+├── stage5_evaluation.py           # Held-out evaluation of frozen models
+├── stage6_scorecard_scaling.py    # Points scaling and manual scorecard
+├── stage7_portfolio_analysis.py   # Risk bands and loss concentration
+├── dashboard_popup.py             # Tkinter results dashboard
+├── test_project.py                # Automated tests
 ├── requirements.txt
-├── data/
+├── README.md
+├── LICENSE
+├── .gitignore
+├── data/                          # 
 │   ├── raw/
 │   └── processed/
-├── models/
-└── outputs/
-    ├── stage3/
-    ├── stage4/
-    ├── stage5/
-    ├── stage6/
-    └── stage7/
+├── models/                        # Created by --rebuild; not committed
+├── outputs/                       # Aggregate results and charts
+│   └── stage3/ … stage7/
+└── docs/
+    ├── dashboard.png
+    └── risk_concentration.png
 ```
 
-The dashboard presents held-out performance, risk concentration, charts and limitations. Referenced chart PNGs and summary CSV/JSON outputs should be committed so results can be inspected without running the project.
+## Licence
 
-## Validation status
-
-Six automated tests passed in the author's working environment: split separation, valid probabilities and record coverage, score/contribution reconciliation, fresh-process model loading, training-learned caps and missing-preserving feature engineering. The reporting runner completed Stages 5–7 with unchanged evaluated metrics.
-
-Clean-environment reproduction, final repository cleanup and a Git checkpoint remain release tasks. No checkpoint tag or independent reproduction is claimed here.
-
+Code: see `LICENSE`. Dataset: CC BY 4.0, attributed to adilshamim8 as above.
