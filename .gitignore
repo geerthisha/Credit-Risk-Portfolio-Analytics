@@ -33,3 +33,6 @@ outputs/stage6/test_scores.csv
 outputs/stage6/test_score_contributions.csv
 outputs/stage6/lowest_score_diagnostics.csv
 outputs/stage7/test_portfolio_records.csv
+
+
+.Rhistory
