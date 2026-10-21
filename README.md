@@ -235,7 +235,7 @@ Model files (`.joblib`) are Python pickles, and loading one can run arbitrary co
 ├── README.md
 ├── LICENSE
 ├── .gitignore
-├── data/                          # 
+├── data/                          # Raw data and borrower-level splits stay local; aggregate audits committed 
 │   ├── raw/
 │   └── processed/
 ├── models/                        # Created by --rebuild; not committed
