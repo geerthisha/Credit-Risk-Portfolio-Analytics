@@ -15,6 +15,7 @@ from config import (
 
 
 TITLE_FONT = ("Arial", 26, "bold")
+QUESTION_FONT = ("Arial", 18, "bold")
 BODY_FONT = ("Arial", 15)
 BOLD_FONT = ("Arial", 15, "bold")
 TABLE_FONT = ("Arial", 14)
@@ -602,12 +603,14 @@ class RiskDashboard:
             title=True,
         )
 
-        add_text(
+        question_label = add_text(
             root,
             "How effectively can logistic regression predict two-year "
             "serious delinquency from borrower characteristics "
             "in this benchmark dataset?",
+            bold=True,
         )
+        question_label.configure(font=QUESTION_FONT)
 
         add_text(
             root,
