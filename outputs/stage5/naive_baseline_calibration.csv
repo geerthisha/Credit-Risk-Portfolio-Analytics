@@ -1,0 +1,2 @@
+probability_bin,records,events,mean_predicted_probability,observed_event_rate
+"(0.4, 0.5]",3343,1671,0.49996260004487997,0.49985043374214777

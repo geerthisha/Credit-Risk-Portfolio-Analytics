@@ -1,0 +1,26 @@
+{
+  "test_records": 3343,
+  "test_events": 1671,
+  "test_event_rate": 0.49985043374214777,
+  "model_files": {
+    "naive_baseline": "naive_baseline_separate_counts.joblib",
+    "logistic_regression": "selected_logistic_pipeline.joblib",
+    "gradient_boosting": "gradient_boosting_separate_counts.joblib"
+  },
+  "selected_logistic_parameters": {
+    "model__C": 10.0,
+    "preprocessing__income_transform__enabled": true
+  },
+  "selected_logistic_feature_set": "separate_counts",
+  "threshold": 0.5,
+  "threshold_policy": "Fixed before initial test evaluation; not tuned on test data.",
+  "threshold_interpretation": "Benchmark midpoint, not a validated lending decision policy.",
+  "bootstrap_repetitions": 1000,
+  "bootstrap_method": "paired class-stratified percentile",
+  "confidence_level": 0.95,
+  "calibration_bins": 10,
+  "random_state": 42,
+  "models_refitted": false,
+  "model_freeze_policy": "Retain the evaluated models. Further development informed by test results requires fresh independent evaluation.",
+  "interval_scope": "Test-sample uncertainty conditional on fitted models; excludes training and model-selection uncertainty."
+}

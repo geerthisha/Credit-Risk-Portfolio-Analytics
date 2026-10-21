@@ -1,0 +1,2 @@
+borrowers,observed_events,mean_predicted_probability,observed_event_rate,currency,assumed_ead_per_borrower,assumed_lgd,total_assumed_ead,illustrative_loss,illustrative_loss_rate
+3343,1671,0.50358219487209,0.49985043374214777,GBP,10000.0,0.45,33430000.0,7575638.748558285,0.22661198769244045

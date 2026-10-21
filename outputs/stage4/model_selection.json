@@ -1,0 +1,83 @@
+{
+  "selection_metric": "mean_cross_validated_roc_auc",
+  "selected_logistic_feature_set": "separate_counts",
+  "selected_logistic_features": [
+    "rev_util",
+    "age",
+    "late_30_59",
+    "debt_ratio",
+    "monthly_inc",
+    "open_credit",
+    "late_90",
+    "real_estate",
+    "late_60_89",
+    "dependents",
+    "delinquency_code_flag"
+  ],
+  "selected_logistic_parameters": {
+    "model__C": 10.0,
+    "preprocessing__income_transform__enabled": true
+  },
+  "selected_logistic_cv_roc_auc": 0.8478173599951788,
+  "selected_logistic_intercept": 0.32769448704990933,
+  "income_log1p_selected": true,
+  "selected_logistic_iterations": 11,
+  "selected_logistic_max_iter": 5000,
+  "selected_logistic_below_iteration_limit": true,
+  "convergence_warnings_treated_as_errors": true,
+  "model_reload_predictions_match": true,
+  "training_records": 13369,
+  "training_event_rate": 0.49996260004487997,
+  "cv_folds": 5,
+  "random_state": 42,
+  "capping_quantile": 0.99,
+  "capped_features": [
+    "rev_util",
+    "debt_ratio"
+  ],
+  "imputation": "training_fold_median",
+  "logistic_scaling": "training_fold_standard_scaler",
+  "test_data_used": false,
+  "python_version": "3.14.2",
+  "sklearn_version": "1.8.0",
+  "pandas_version": "2.3.3",
+  "numpy_version": "2.4.1",
+  "experiments": [
+    {
+      "model": "naive_baseline",
+      "feature_set": "separate_counts",
+      "best_parameters": {},
+      "mean_cv_roc_auc": 0.5,
+      "model_file": "naive_baseline_separate_counts.joblib"
+    },
+    {
+      "model": "logistic_regression",
+      "feature_set": "separate_counts",
+      "best_parameters": {
+        "model__C": 10.0,
+        "preprocessing__income_transform__enabled": true
+      },
+      "mean_cv_roc_auc": 0.8478173599951788,
+      "model_file": "logistic_regression_separate_counts.joblib"
+    },
+    {
+      "model": "logistic_regression",
+      "feature_set": "weighted_composite",
+      "best_parameters": {
+        "model__C": 10.0,
+        "preprocessing__income_transform__enabled": true
+      },
+      "mean_cv_roc_auc": 0.84718956252978,
+      "model_file": "logistic_regression_weighted_composite.joblib"
+    },
+    {
+      "model": "gradient_boosting",
+      "feature_set": "separate_counts",
+      "best_parameters": {
+        "model__max_leaf_nodes": 7
+      },
+      "mean_cv_roc_auc": 0.8554965119172335,
+      "model_file": "gradient_boosting_separate_counts.joblib"
+    }
+  ]
+}

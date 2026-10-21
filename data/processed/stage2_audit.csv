@@ -1,0 +1,3 @@
+split,input_records,output_records,missing_weighted_totals,flagged_records,original_values_preserved,missing_totals_match_flag
+training,13369,13369,73,73,True,True
+test,3343,3343,15,15,True,True

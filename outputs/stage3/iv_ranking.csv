@@ -1,0 +1,13 @@
+rank,feature,binning_method,observed_groups,missing_records,minimum_group_records,information_value
+1,total_delinquency,fixed_delinquency_groups,6,73,73,1.4334427930791394
+2,rev_util,training_quantiles,5,0,2673,0.9625417383258271
+3,late_90,fixed_delinquency_groups,6,73,69,0.8172068663747154
+4,late_30_59,fixed_delinquency_groups,6,73,73,0.7298388333877741
+5,late_60_89,fixed_delinquency_groups,6,73,14,0.5872158433243148
+6,age,training_quantiles,5,0,2473,0.18867741608654298
+7,monthly_inc,training_quantiles,5,0,2620,0.07536079643136995
+8,debt_ratio,training_quantiles,5,0,2673,0.06803258947114332
+9,open_credit,training_quantiles,5,0,2159,0.049232712073863795
+10,dependents,individual_values,9,0,3,0.03760833926601535
+11,delinquency_code_flag,individual_values,2,0,73,0.026711790686123355
+12,real_estate,training_quantiles,3,0,1059,0.016623391051930635

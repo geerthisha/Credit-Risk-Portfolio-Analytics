@@ -1,28 +1,100 @@
+import argparse
+from pathlib import Path
 import subprocess
-import os
+import sys
 
-print("🚀 STARTING CREDIT RISK SCORECARD PIPELINE 🚀\n")
 
-stages = [
+PROJECT_DIR = Path(__file__).resolve().parent
+
+PREPARATION_AND_TRAINING = [
     "stage1_cleaning.py",
     "stage2_features.py",
     "stage3_woe_iv.py",
     "stage4_pd_modeling.py",
-    "stage5_scorecard_scaling.py",
-    "stage6_ecl_dashboard.py",
-    "dashboard_popup.py"
 ]
 
-for stage in stages:
-    print(f"⏳ Running: {stage}...")
-    # This runs the terminal command for each script automatically
-    result = subprocess.run(["python3", stage], capture_output=True, text=True)
-    
-    if result.returncode == 0:
-        print(f"✅ Completed: {stage}\n")
-    else:
-        print(f"❌ Failed: {stage}")
-        print(result.stderr)
-        break
+EVALUATION_AND_REPORTING = [
+    "stage5_evaluation.py",
+    "stage6_scorecard_scaling.py",
+    "stage7_portfolio_analysis.py",
+]
 
-print("🎉 pipeline execution fully complete! All data and charts are generated.")
+
+def run_stages(stages):
+    """Run scripts sequentially and stop at the first failure."""
+    for stage in stages:
+        path = PROJECT_DIR / stage
+
+        if not path.is_file():
+            print(
+                f"[ERROR] Missing script: {path}",
+                file=sys.stderr,
+            )
+            return 1
+
+    for stage in stages:
+        print(f"\n[INFO] Running {stage}", flush=True)
+
+        try:
+            result = subprocess.run(
+                [sys.executable, str(PROJECT_DIR / stage)],
+                cwd=PROJECT_DIR,
+                check=False,
+            )
+        except OSError as error:
+            print(
+                f"[ERROR] Could not start {stage}: {error}",
+                file=sys.stderr,
+            )
+            return 1
+
+        if result.returncode != 0:
+            print(
+                f"[ERROR] {stage} failed with exit code "
+                f"{result.returncode}",
+                file=sys.stderr,
+            )
+            return (
+                result.returncode
+                if result.returncode > 0
+                else 1
+            )
+
+    print("\n[SUCCESS] All requested stages completed")
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Run the credit-risk analysis workflow."
+    )
+    parser.add_argument(
+        "--rebuild",
+        action="store_true",
+        help=(
+            "Run Stages 1–7, including model fitting. "
+            "Overwrites generated models and outputs."
+        ),
+    )
+    args = parser.parse_args()
+
+    stages = EVALUATION_AND_REPORTING.copy()
+
+    if args.rebuild:
+        stages = PREPARATION_AND_TRAINING + stages
+        print(
+            "[INFO] Rebuild requested: generated models and "
+            "outputs will be overwritten.",
+            flush=True,
+        )
+    else:
+        print(
+            "[INFO] Reporting mode: using existing fitted models.",
+            flush=True,
+        )
+
+    return run_stages(stages)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

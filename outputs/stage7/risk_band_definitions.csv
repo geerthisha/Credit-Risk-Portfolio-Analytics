@@ -1,0 +1,7 @@
+risk_band,probability_lower,probability_upper,probability_lower_inclusive,probability_upper_inclusive,score_lower,score_upper,score_lower_inclusive,score_upper_inclusive
+0-10%,0.0,0.1,True,True,663.3985000288462,inf,True,False
+10-20%,0.1,0.2,False,True,640.0,663.3985000288462,True,False
+20-40%,0.2,0.4,False,True,611.6992500144231,640.0,True,False
+40-60%,0.4,0.6,False,True,588.3007499855769,611.6992500144231,True,False
+60-80%,0.6,0.8,False,True,560.0,588.3007499855769,True,False
+80-100%,0.8,1.0,False,True,-inf,560.0,False,False

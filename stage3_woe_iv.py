@@ -1,87 +1,281 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-# Load featured dataset matrix from Stage 2
-df = pd.read_csv('Credit_Risk_Features.csv')
-
-print("[INFO] Initializing Stage 3: Discretization & Weight of Evidence (WoE) / Information Value (IV) Analysis\n")
-
-def calculate_woe_iv(dataset, feature, target):
-    """
-    Computes Weight of Evidence (WoE) and aggregated Information Value (IV)
-    for a discretized credit scorecard variable.
-    """
-    # Group target matrices by specific interval bins
-    grouped = dataset.groupby(feature)[target].agg(['count', 'sum'])
-    grouped.columns = ['Total', 'Bads']
-    grouped['Goods'] = grouped['Total'] - grouped['Bads']
-    
-    # Apply standard risk engine adjustment to prevent undefined log zero fractions
-    grouped['Bads'] = grouped['Bads'].replace(0, 0.5)
-    grouped['Goods'] = grouped['Goods'].replace(0, 0.5)
-    
-    # Establish total portfolio volumes for baseline denominators
-    total_goods = dataset[target].count() - dataset[target].sum()
-    total_bads = dataset[target].sum()
-    
-    grouped['Dist_Goods'] = grouped['Goods'] / total_goods
-    grouped['Dist_Bads'] = grouped['Bads'] / total_bads
-    
-    # Execute WoE alignment and part-IV transformation matrix
-    grouped['WoE'] = np.log(grouped['Dist_Goods'] / grouped['Dist_Bads'])
-    grouped['IV_Part'] = (grouped['Dist_Goods'] - grouped['Dist_Bads']) * grouped['WoE']
-    
-    iv = grouped['IV_Part'].sum()
-    return grouped, iv
+from config import (
+    CANDIDATE_MODEL_FEATURES,
+    DELINQUENCY_COLUMNS,
+    DELINQUENCY_FLAG,
+    PROCESSED_DIR,
+    PROJECT_DIR,
+    TARGET,
+)
 
 
-# --- CATEGORICAL INTERVAL VARIABLE DISCRETIZATION ---
-# Map continuous data tracking profiles into risk bucket matrices
-df_binned = pd.DataFrame()
-df_binned['dlq_2yrs'] = df['dlq_2yrs']
+OUTPUT_DIR = PROJECT_DIR / "outputs" / "stage3"
+N_QUANTILE_BINS = 5
+SMOOTHING = 0.5
 
-# Profile A: Standard Age Cohorts
-df_binned['age_bin'] = pd.cut(df['age'], bins=[18, 30, 40, 50, 60, 70, 100], include_lowest=True).astype(str)
-
-# Profile B: Quantile Splitting for Income
-df_binned['income_bin'] = pd.qcut(df['monthly_inc'], q=5, duplicates='drop').astype(str)
-
-# Profile C: Quantile Splitting for Debt Load Metrics
-df_binned['debt_bin'] = pd.qcut(df['debt_ratio'], q=5, duplicates='drop').astype(str)
-
-# Profile D: Quantile Splitting for Line Utilization
-df_binned['util_bin'] = pd.qcut(df['rev_util'], q=5, duplicates='drop').astype(str)
-
-# Profile E: Custom Structured Bounds for Engineered Delinquency Metrics
-df_binned['delinquency_bin'] = pd.cut(df['total_delinquency'], bins=[-1, 0, 1, 3, 5, 100], include_lowest=True).astype(str)
+DELINQUENCY_LABELS = ["0", "1", "2-3", "4-5", "6+"]
 
 
-# --- STRATEGIC PREDICTIVE POWER PROFILING ---
-features_to_test = ['age_bin', 'income_bin', 'debt_bin', 'util_bin', 'delinquency_bin']
-iv_ranking = {}
+def validate_training_data(df):
+    """Validate the training features and binary target."""
+    required = CANDIDATE_MODEL_FEATURES + [TARGET]
+    missing = set(required) - set(df.columns)
 
-for feat in features_to_test:
-    woe_df, iv = calculate_woe_iv(df_binned, feat, 'dlq_2yrs')
-    iv_ranking[feat] = iv
-    
-    # Print a diagnostic summary report using Age distribution as a validation check
-    if feat == 'age_bin':
-        print("[DEBUG] Diagnostic Variable Profile Validation (Feature: Age Cohorts)")
-        print(woe_df[['Total', 'Bads', 'Goods', 'WoE']].round(4))
-        print("-" * 65)
+    if missing:
+        raise ValueError(f"Missing columns: {sorted(missing)}")
 
-print("\n[INFO] Evaluated Information Value (IV) Predictive Rankings:")
-print(f"{'Rank':<2} | {'Variable Name':<17} | {'Aggregated IV':<21} | {'Predictive Strength'}")
-print("-" * 65)
+    if df.empty:
+        raise ValueError("The training dataset is empty.")
 
-sorted_iv = sorted(iv_ranking.items(), key=lambda x: x[1], reverse=True)
-for rank, (feature, iv_val) in enumerate(sorted_iv, 1):
-    strength = "Unviable"
-    if iv_val >= 0.3: strength = "High Predictor"
-    elif iv_val >= 0.1: strength = "Medium Predictor"
-    elif iv_val >= 0.02: strength = "Weak Contextual"
-    
-    print(f"{rank:<2} | {feature:<17} | {iv_val:<21.4f} | {strength}")
+    if not df[TARGET].isin([0, 1]).all():
+        raise ValueError("The target contains invalid values.")
 
-print("-" * 65)
-print("[SUCCESS] Variable statistical selection execution complete\n")
+    if df[TARGET].nunique() != 2:
+        raise ValueError("Both target classes are required.")
+
+    for feature in CANDIDATE_MODEL_FEATURES:
+        if not pd.api.types.is_numeric_dtype(df[feature]):
+            raise ValueError(f"{feature} must be numeric.")
+
+        values = df[feature].dropna().to_numpy(dtype=float)
+
+        if not np.isfinite(values).all():
+            raise ValueError(f"{feature} contains infinite values.")
+
+    if not df[DELINQUENCY_FLAG].isin([0, 1]).all():
+        raise ValueError("The delinquency flag must contain 0 or 1.")
+
+
+def bin_feature(series, feature):
+    """Create descriptive groups using training data only."""
+    observed = series.dropna()
+
+    if observed.empty:
+        return (
+            pd.Series("Missing", index=series.index),
+            "all_missing",
+        )
+
+    if feature in DELINQUENCY_COLUMNS + ["total_delinquency"]:
+        if (observed < 0).any():
+            raise ValueError(f"{feature} contains negative counts.")
+
+        if (observed % 1 != 0).any():
+            raise ValueError(f"{feature} contains fractional counts.")
+
+        grouped = pd.cut(
+            series,
+            bins=[-np.inf, 0, 1, 3, 5, np.inf],
+            labels=DELINQUENCY_LABELS,
+        )
+
+        method = "fixed_delinquency_groups"
+
+    elif observed.nunique() <= 10:
+        grouped = series
+        method = "individual_values"
+
+    else:
+        grouped = pd.qcut(
+            series,
+            q=N_QUANTILE_BINS,
+            duplicates="drop",
+        )
+
+        method = "training_quantiles"
+
+    labels = grouped.astype("string").fillna("Missing")
+
+    return labels, method
+
+
+def get_group_order(labels, method):
+    """Return a readable ordering for the descriptive groups."""
+    observed_labels = labels[labels != "Missing"].unique().tolist()
+
+    if method == "fixed_delinquency_groups":
+        order = [
+            label
+            for label in DELINQUENCY_LABELS
+            if label in observed_labels
+        ]
+
+    elif method == "individual_values":
+        order = sorted(observed_labels, key=float)
+
+    elif method == "training_quantiles":
+        def lower_boundary(label):
+            return float(label[1:].split(",")[0])
+
+        order = sorted(observed_labels, key=lower_boundary)
+
+    else:
+        order = observed_labels
+
+    if labels.eq("Missing").any():
+        order.append("Missing")
+
+    return order
+
+
+def calculate_woe_iv(labels, target, group_order):
+    """Calculate smoothed WoE and IV for observed training groups."""
+    working = pd.DataFrame({
+        "group": labels,
+        "target": target,
+    })
+
+    table = (
+        working.groupby("group")["target"]
+        .agg(records="size", events="sum")
+        .reindex(group_order)
+        .reset_index()
+    )
+
+    table["non_events"] = table["records"] - table["events"]
+    table["event_rate"] = table["events"] / table["records"]
+    table["sample_share"] = table["records"] / len(working)
+
+    # Add the same pseudocount to each class in every observed group.
+    number_of_groups = len(table)
+
+    smoothed_event_total = (
+        table["events"].sum() + SMOOTHING * number_of_groups
+    )
+    smoothed_non_event_total = (
+        table["non_events"].sum() + SMOOTHING * number_of_groups
+    )
+
+    table["event_distribution"] = (
+        table["events"] + SMOOTHING
+    ) / smoothed_event_total
+
+    table["non_event_distribution"] = (
+        table["non_events"] + SMOOTHING
+    ) / smoothed_non_event_total
+
+    table["woe"] = np.log(
+        table["non_event_distribution"]
+        / table["event_distribution"]
+    )
+
+    table["iv_component"] = (
+        table["non_event_distribution"]
+        - table["event_distribution"]
+    ) * table["woe"]
+
+    if table["records"].sum() != len(working):
+        raise RuntimeError("Group record counts do not reconcile.")
+
+    if table["events"].sum() != target.sum():
+        raise RuntimeError("Group event counts do not reconcile.")
+
+    if not np.isclose(table["event_distribution"].sum(), 1.0):
+        raise RuntimeError("Event distributions do not sum to one.")
+
+    if not np.isclose(table["non_event_distribution"].sum(), 1.0):
+        raise RuntimeError("Non-event distributions do not sum to one.")
+
+    if not np.isfinite(
+        table[["woe", "iv_component"]].to_numpy()
+    ).all():
+        raise RuntimeError("WoE or IV contains non-finite values.")
+
+    return table, float(table["iv_component"].sum())
+
+
+def main():
+    print("[INFO] Stage 3: Training-only feature profiles and WoE/IV")
+
+    train_df = pd.read_csv(PROCESSED_DIR / "train_features.csv")
+    validate_training_data(train_df)
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    ranking_rows = []
+    combined_tables = []
+
+    for feature in CANDIDATE_MODEL_FEATURES:
+        labels, method = bin_feature(train_df[feature], feature)
+        group_order = get_group_order(labels, method)
+
+        table, iv = calculate_woe_iv(
+            labels,
+            train_df[TARGET],
+            group_order,
+        )
+
+        table.insert(0, "feature", feature)
+        table.insert(1, "binning_method", method)
+
+        table.to_csv(
+            OUTPUT_DIR / f"{feature}_woe_iv.csv",
+            index=False,
+        )
+
+        combined_tables.append(table)
+
+        ranking_rows.append({
+            "feature": feature,
+            "binning_method": method,
+            "observed_groups": len(table),
+            "missing_records": int(train_df[feature].isna().sum()),
+            "minimum_group_records": int(table["records"].min()),
+            "information_value": iv,
+        })
+
+    ranking = (
+        pd.DataFrame(ranking_rows)
+        .sort_values(
+            ["information_value", "feature"],
+            ascending=[False, True],
+        )
+        .reset_index(drop=True)
+    )
+    ranking.insert(0, "rank", np.arange(1, len(ranking) + 1))
+
+    ranking.to_csv(OUTPUT_DIR / "iv_ranking.csv", index=False)
+
+    pd.concat(combined_tables, ignore_index=True).to_csv(
+        OUTPUT_DIR / "all_feature_profiles.csv",
+        index=False,
+    )
+
+    pd.DataFrame([{
+        "training_records": len(train_df),
+        "training_events": int(train_df[TARGET].sum()),
+        "training_event_rate": float(train_df[TARGET].mean()),
+        "features_profiled": len(ranking),
+        "quantile_bins_requested": N_QUANTILE_BINS,
+        "smoothing_per_class_per_group": SMOOTHING,
+        "test_data_used": False,
+    }]).to_csv(
+        OUTPUT_DIR / "stage3_audit.csv",
+        index=False,
+    )
+
+    print(f"[INFO] Training records: {len(train_df):,}")
+    print(f"[INFO] Features profiled: {len(ranking)}")
+
+    print("\n[INFO] Exploratory IV ranking:")
+    print(
+        ranking[
+            ["rank", "feature", "information_value"]
+        ].to_string(
+            index=False,
+            float_format=lambda value: f"{value:.4f}",
+        )
+    )
+
+    print("\n[INFO] Positive WoE indicates lower relative event risk")
+    print("[INFO] Missing values are reported as a separate group")
+    print("[INFO] IV depends on the chosen grouping")
+    print("[INFO] These tables do not select the final model features")
+    print("[INFO] No test data was loaded")
+    print(f"[SUCCESS] Files saved to: {OUTPUT_DIR}")
+
+
+if __name__ == "__main__":
+    main()

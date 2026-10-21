@@ -1,0 +1,42 @@
+{
+  "sample": "held_out_test",
+  "records": 3343,
+  "band_method": "fixed probability boundaries",
+  "probability_edges": [
+    0.0,
+    0.1,
+    0.2,
+    0.4,
+    0.6,
+    0.8,
+    1.0
+  ],
+  "boundary_selection": "Descriptive boundaries chosen independently of test outcomes.",
+  "currency": "GBP",
+  "assumed_ead_per_borrower": 10000.0,
+  "assumed_lgd": 0.45,
+  "prediction_horizon_years": 2,
+  "loss_formula": "sum(predicted serious-delinquency probability * assumed EAD * assumed LGD)",
+  "loss_concentration_interpretation": "With constant EAD and LGD, loss shares are proportional to each band's sum of predicted event probabilities.",
+  "loss_shares_defined": true,
+  "serious_delinquency_used_as_pd_proxy": true,
+  "discounting_applied": false,
+  "probabilities_match_stage5": true,
+  "scores_match_probabilities": true,
+  "band_totals_reconcile": true,
+  "borrower_shares_sum_to_one": true,
+  "loss_shares_sum_to_one": true,
+  "observed_event_rates_monotonic_increasing": true,
+  "model_refitted": false,
+  "model_sha256_from_stage6": "c90e909aa29c7c2c00cab1e550eccf36ecc024ca03d2daa090155a685bde98c5",
+  "limitations": [
+    "The sample has approximately equal event and non-event counts.",
+    "Probabilities have not been recalibrated to a lending population.",
+    "EAD and LGD are assumptions, not observed borrower quantities.",
+    "Serious delinquency is a proxy for default in this illustration.",
+    "Monetary losses are not representative portfolio estimates.",
+    "No observed monetary losses are available for validation.",
+    "This calculation does not establish IFRS 9 compliance.",
+    "Band and concentration patterns describe this benchmark only."
+  ]
+}

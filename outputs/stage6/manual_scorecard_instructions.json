@@ -1,0 +1,21 @@
+{
+  "manual_intercept": 590.1827142410161,
+  "formula": "score = manual_intercept + sum(points_per_processed_unit * processed_feature_value)",
+  "input_requirement": "Inputs must first receive the same Stage 1 unusual-code handling and flag construction.",
+  "feature_engineering": "For the composite representation only: total_delinquency = late_30_59 + 2*late_60_89 + 3*late_90. Missing components produce a missing total.",
+  "processing_order": [
+    "Replace missing feature values with exported imputation values.",
+    "Apply each exported upper cap where indicated.",
+    "Apply log1p where indicated, using the natural logarithm.",
+    "Multiply processed values by their exported points multipliers.",
+    "Sum contributions and add the manual intercept."
+  ],
+  "income_interpretation": "When income uses log1p, its multiplier applies to ln(1 + monthly_inc), not directly to raw income.",
+  "reference_interpretation": "The original base_points is the score at the mean of the processed training predictors. This combination need not represent an actual borrower.",
+  "contribution_interpretation": "Centred feature contributions describe score changes relative to processed training means. They are model contributions, not validated lending reason codes.",
+  "probability_formula": "event_probability = expit((offset - score) / factor)",
+  "factor": 28.85390081777927,
+  "offset": 600.0,
+  "manual_reconstruction_passed": true,
+  "maximum_absolute_reconstruction_error": 1.7053025658242404e-13
+}

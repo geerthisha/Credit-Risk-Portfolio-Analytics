@@ -1,0 +1,2 @@
+training_records,training_events,training_event_rate,features_profiled,quantile_bins_requested,smoothing_per_class_per_group,test_data_used
+13369,6684,0.49996260004487997,12,5,0.5,False

@@ -1,0 +1,2 @@
+input_records,minimum_eligible_age,upper_age_limit_applied,excluded_missing_age,excluded_under_minimum_age,duplicate_copies_removed,retained_records,delinquency_flags_identical,records_with_unusual_delinquency_codes,late_30_59_unusual_count,late_60_89_unusual_count,late_90_unusual_count,training_records,training_events,training_event_rate,test_records,test_events,test_event_rate,record_id_overlap,random_state,test_size
+16714,18,False,0,0,2,16712,True,88,88,88,88,13369,6684,0.49996260004487997,3343,1671,0.49985043374214777,0,42,0.2
