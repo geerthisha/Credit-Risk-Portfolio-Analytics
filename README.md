@@ -1,3 +1,8 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 # Credit Risk Portfolio Analytics
 
 **How effectively can logistic regression predict two-year serious delinquency from borrower characteristics in this benchmark dataset?**
@@ -233,7 +238,6 @@ Model files (`.joblib`) are Python pickles, and loading one can run arbitrary co
 ├── test_project.py                # Automated tests
 ├── requirements.txt
 ├── README.md
-├── LICENSE
 ├── .gitignore
 ├── data/                          # Raw data and borrower-level splits stay local; aggregate audits committed 
 │   ├── raw/
@@ -246,6 +250,3 @@ Model files (`.joblib`) are Python pickles, and loading one can run arbitrary co
     └── risk_concentration.png
 ```
 
-## Licence
-
-Code: see `LICENSE`. Dataset: CC BY 4.0, attributed to adilshamim8 as above.
