@@ -1,8 +1,3 @@
----
-output:
-  pdf_document: default
-  html_document: default
----
 # Credit Risk Portfolio Analytics
 
 **How effectively can logistic regression predict two-year serious delinquency from borrower characteristics in this benchmark dataset?**
